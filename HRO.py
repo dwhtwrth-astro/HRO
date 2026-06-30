@@ -8,7 +8,6 @@ from arepy.read_write import binary_read as rsnap
 from arepy.read_write import binary_write as wsnap
 from arepy.utility import cgs_constants as cgs
 from arepy.utility import snap_utility as sutil
-#import h5py
 from arepy.utility import snap_utility as snut
 
 import matplotlib.colors as mc
@@ -44,8 +43,6 @@ from scipy.ndimage import gaussian_filter
 
 from tqdm import tqdm
 import time
-#from arepy.utility import snap_utility as snut
-#from arepy.utility.ut_utility import *
 
 import yt
 import matplotlib.pyplot as plt
@@ -57,11 +54,18 @@ from astropy import units as u, constants as c
 ulength = 3.0856e20       # [cm]
 umass = 1.991e33          # [g]
 uvel = 1.0e5              # [cm/s]
-udensity = umass/ulength/ulength/ulength   # g/cm^3
-umag = umass**0.5 / ulength**1.5 * uvel    # Gauss
-
-mp = 1.6726231e-24        # g
-xHe = 0.1                 # atomic fraction of He
+utime = ulength/uvel
+udensity = umass/ulength/ulength/ulength
+uenergy= umass*uvel*uvel
+ucolumn = umass/ulength/ulength
+uMyr=utime/(60.*60.*24.*365.25*1.e6)
+uparsec=ulength/3.0856e18
+uyear=utime/(365.25*24.*60.*60.)
+umag = umass**0.5 / ulength**1.5 * uvel
+mp = 1.6726231e-24
+kb = 1.3806485e-16
+ABHE = 0.1
+xHe=0.1
 
 # ---- Units
 pc = c.pc.cgs.value
@@ -71,67 +75,13 @@ G = c.G.cgs.value
 Myr = u.Myr.in_units("s")
 kpc = 1e3*pc
 
-
 ########### GENERAL STUFF  ##########
-
-#internal arepo units in cgs
-ulength = 3.0856e20
-umass = 1.991e33
-uvel = 1.0e5
-
-utime = ulength/uvel
-udensity = umass/ulength/ulength/ulength
-uenergy= umass*uvel*uvel
-ucolumn = umass/ulength/ulength
-uMyr=utime/(60.*60.*24.*365.25*1.e6)
-uparsec=ulength/3.0856e18
-uyear=utime/(365.25*24.*60.*60.)
-umag = umass**0.5 / ulength**1.5 * uvel
-
-
-mp = 1.6726231e-24
-kb = 1.3806485e-16
-ABHE = 0.1
-xHe=0.1
 
 #make the images bigger
 fig_size = plt.rcParams["figure.figsize"]
 fig_size[0]=10
 fig_size[1]=10
 plt.rcParams["figure.figsize"] = fig_size
-
-def JeansMass(cs,yn):
-    # In solar masses. cs sound speed in kms^-1, yn in cm^-3
-    JM = 2.* (cs / 0.2)**3. * (yn / 1000.)**-0.5
-    return JM
-
-def tff(yn):
-    # In years. yn in cm^-3
-    t = 2.e6 * (yn/1000.)**-0.5
-    return t
-    
-def JeansLength(cs,yn):    #also known as jeans radius
-    #In pc
-    JL = 0.4 * (cs/0.2) * (yn/1000.)**-0.5
-    return JL
-
-def molweight(H2,Hp):
-    # Molecular weight given molecular and ionised hydrogen abundance
-    ABHE=0.1
-    mw=(1.0 + 4.0*ABHE) / (1.0 + ABHE - H2 + Hp)
-    return mw
-
-def soundspeed(T,mw):
-    # In kms^-1
-    mp=1.6726e-24
-    kboltz=1.38066e-16
-    cs=1.e-5 * np.sqrt(kboltz * T / (mw*mp) )
-    return cs
-
-def critdensity(length,cs):
-    yncrit = 1.e3*(length/(2.0*cs))**-2 
-    return yncrit
-
 
 def read_snapshot_hdf5(filename, verbose=False):
     """
@@ -224,12 +174,8 @@ def write_snapshot_hdf5(filename, output):
                 file['PartType0'][key][:] = output['data'][key]
                 
                 
-#base_SAT = '/cosma8/data/dp058/dc-whit3/MEXICO_MHD/Double_Mass/pNbody_test/sne_test/snapshots/'
 base_SAT = '/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/snapshots/'
 base = '/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/'
-#base_SAT = '/cosma8/data/dp058/dc-whit3/Lyon/LSD_jeans_from_start/snapshots/'
-# ---- PARAMETERS (set these directly in the cell)
-#file_path = "/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/snapshots/MHD_LSD_3702.hdf5" # adapt as needed
 
 #peaks
 #number = 1437
@@ -252,12 +198,11 @@ base = '/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/'
 #number = 2066
 number = 3070
 
-
 filenum = str(number).zfill(3)
 file_path = '/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/snapshots/MHD_LSD_' + filenum + '.hdf5'
 
 level = 10
-fields = ["magnetic_field_x", "magnetic_field_y", "magnetic_field_z","density"]#, "mass"]
+fields = ["magnetic_field_x", "magnetic_field_y", "magnetic_field_z","density"]
 plot_chk = True # or False
 
 filenum = str(number).zfill(3)
@@ -276,9 +221,7 @@ output = read_snapshot_hdf5(f)
 data = output['data']
 header = output['header']
 star_data = output['star_data']
-
 time = header['Time']*uMyr
-
 ID = data['ParticleIDs']
 
 halo_data = output['halo_data']
@@ -286,30 +229,6 @@ print('Number of stars = ', star_data['Masses'].shape)    #3129
 print('star part ID max', np.max(star_data['PID']))
 print('data part ID max', np.max(data['ParticleIDs']))
 print('data part shape', data['ParticleIDs'].shape)
-
-import yt
-import matplotlib.pyplot as plt
-import numpy as np
-import pickle
-from astropy import units as u, constants as c
-
-#arepo conversions
-ulength = 3.0856e20       # [cm]
-umass = 1.991e33          # [g]
-uvel = 1.0e5              # [cm/s]
-udensity = umass/ulength/ulength/ulength   # g/cm^3
-umag = umass**0.5 / ulength**1.5 * uvel    # Gauss
-
-mp = 1.6726231e-24        # g
-xHe = 0.1                 # atomic fraction of He
-
-# ---- Units
-pc = c.pc.cgs.value
-kB  = c.k_B.cgs.value
-Msun = c.M_sun.cgs.value
-G = c.G.cgs.value
-Myr = u.Myr.in_units("s")
-kpc = 1e3*pc
 
 # ---- PARAMETERS (set these directly in the cell)
 #file_path = "/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/snapshots/MHD_LSD_3702.hdf5" # adapt as needed
@@ -404,10 +323,6 @@ if plot_chk:
     fig.tight_layout()
     #plt.show()
 
-# ---- Save output as needed
-#with open('/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/grids/uniform-grid-lvl%i.pkl' % level, 'wb') as handle:
-#    pickle.dump(data, handle, protocol=pickle.HIGHEST_PROTOCOL)
-
 total_z = data['density'].shape[2]   # should be 512
 crop_z = data['density'].shape[2]//2   #4
 print('total_z:', total_z)
@@ -415,9 +330,6 @@ print('crop_z:', crop_z)
 start = (total_z - crop_z) // 2      # 192
 end = start + crop_z                 # 320
 print("Central z-cells:", start, "to", end-1)
-
-#z_total = 512
-#z_crop = 128
 
 print(start, end)                # Should be 192, 320 for 128 centered in 512
 
@@ -464,8 +376,6 @@ print(yn.shape)
 
 yn  = yn.astype(np.float32, copy=False)
 print('yn done')
-#rho = rho.astype(np.float32, copy=False)
-#print('rho done')
 Bx  = Bx.astype(np.float32, copy=False)
 print('Bx done')
 By  = By.astype(np.float32, copy=False)
@@ -475,7 +385,6 @@ print('Bx done')
 
 with h5py.File("/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/grids/test_cube_data_float32.hdf5", "w") as hf:
     hf.create_dataset("yn", data=yn, compression="gzip")
-    #hf.create_dataset("rho", data=rho, compression="gzip")
     hf.create_dataset("Bx", data=Bx, compression="gzip")
     hf.create_dataset("By", data=By, compression="gzip")
     hf.create_dataset("Bz", data=Bz, compression="gzip")
@@ -527,17 +436,6 @@ with h5py.File(f3, "r") as hf:
     By_3070 = hf["By"][:]
     Bz_3070 = hf["Bz"][:]
 print("Loaded data from file:", f3)
-
-import sys
-import numpy as np
-import time
-import matplotlib.pyplot as plt
-from matplotlib.pyplot import cm 
-
-#from scipy import ndimage
-from scipy.ndimage import gaussian_filter
-
-from tqdm import tqdm
 
 # ========================================================================================================================
 def roangles3D(dens, Bx, By, Bz, mode='nearest', pxksz=2.56):#10.24):#5.12):#2.56):
@@ -835,7 +733,6 @@ def hro3D(dens, Bx, By, Bz, steps=10, hsize=21, mind=None, outh=[0,4,9], pxksz=2
 
 with h5py.File("/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/grids/test_cube_data_float32.hdf5", "r") as hf:
     yn_test  = hf["yn"][:]
-    #rho = hf["rho"][:]
     Bx_test  = hf["Bx"][:]
     By_test  = hf["By"][:]
     Bz_test  = hf["Bz"][:]
