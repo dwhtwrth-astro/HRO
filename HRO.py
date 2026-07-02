@@ -438,7 +438,7 @@ with h5py.File(f3, "r") as hf:
 print("Loaded data from file:", f3)
 
 # ========================================================================================================================
-def roangles3D(dens, Bx, By, Bz, mode='nearest', pxksz=2.56):#10.24):#5.12):#2.56):
+def roangles3D(dens, Bx, By, Bz, mode='nearest', pxksz=None):#10.24):#5.12):#2.56):
     """
     Calculates the cosine of the relative orientation angles between the density gradient and the magnetic field in 3D. 
     
@@ -506,7 +506,7 @@ def roangles3D(dens, Bx, By, Bz, mode='nearest', pxksz=2.56):#10.24):#5.12):#2.5
 
 
 # ============================================================================================================
-def equibins(dens, steps=10, mind=None):
+def equibins(dens, steps=None, mind=None):
    # Compute bins with equal number of voxels 
    #
    # INPUTS
@@ -538,7 +538,7 @@ def equibins(dens, steps=10, mind=None):
    return dsteps
 
 # ============================================================================================================
-def roparameterhist(cosphi, hsize=15, ppwin=0.25, w=None):
+def roparameterhist(cosphi, hsize=None, ppwin=0.25, w=None):
 
    # Calculate the relative orientation parameter $\xi$, Eq. 13 in Soler et al. 2013
    #
@@ -590,8 +590,8 @@ def roparameter(cosphi, hist, ppwin=0.25):
 # ============================================================================================================
 #def hro3D(dens, Bx, By, Bz, steps=10, dsteps=None, hsize=21, mind=None, outh=[0,4,9], pxksz=2.56, label=r'$n$', weights=None):
 #def hro3D(dens, Bx, By, Bz, steps=10, dsteps=None, hsize=21, mind=None, outh=[0,4,9], pxksz=2.56, label=r'$n$', weights=None,savefile=None, make_plots=False):
-def hro3D(dens, Bx, By, Bz, steps=10, hsize=21, mind=None, outh=[0,4,9], pxksz=2.56, label=r'$n$', weights=None,savefile=None, make_plots=False):
-
+#def hro3D(dens, Bx, By, Bz, steps=10, hsize=21, mind=None, outh=[0,4,9], pxksz=2.56, label=r'$n$', weights=None,savefile=None, make_plots=False):
+def hro3D(dens, Bx, By, Bz, steps=4, dsteps=None, hsize=21, mind=None, outh=None, pxksz=None, label=r'$n$', weights=None,savefile=None, make_plots=False)
     # Calculate the relative orientation parameter $\xi$, Eq. 13 in Soler et al. 2013
    #
    # INPUTS
@@ -739,15 +739,18 @@ with h5py.File("/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/grids/test_cube_data_
 print("Loaded data from file.")
 
 #hros, cdens, zeta = hro3D(rho, Bx, By, Bz, mind=np.mean(rho))
-manual_dsteps = np.array([0.1, 1, 10, 100, 500])#, 800])#, 5000])
+manual_dsteps = np.array([0.5,1,2,4,6,8,10,50,100])#0.2,0.4,0.6,0.8,1,2,4,6,8,10,20,40,60])#, 800])#, 5000])
 #gy, gx, gz = np.gradient(yn_test)
-outh = [0,4,9]
-gy, gx, gz = np.gradient(yn_test)
+#outh = [0,4,9]
+outh = np.arange(len(manual_dsteps) - 1)#[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18]
+steps = np.size(outh)
+print(steps)
+gaussion_voxels = 10
 print("About to call hro3D")
 #results = hro3D(yn, Bx, By, Bz, mind=np.mean(yn), dsteps=manual_dsteps, outh=None)
-#results = hro3D(yn_test, Bx_test, By_test, Bz_test, mind=np.mean(yn_test), dsteps=manual_dsteps, outh=None, savefile="hro_data_test.npz", make_plots=True)
+results = hro3D(yn_test, Bx_test, By_test, Bz_test, steps=steps, mind=np.mean(yn_test), dsteps=manual_dsteps, outh=outh, pxksz=gaussion_voxels, savefile="hro_data_test.npz", make_plots=True)
 #results = hro3D(yn_test, gy, gx, gz, mind=np.mean(yn_test), dsteps=manual_dsteps, outh=outh, savefile="hro_data_test.npz", make_plots=True)
-results = hro3D(yn_test, gy, gx, gz, mind=np.mean(yn_test), outh=outh, savefile="hro_data_test.npz", make_plots=True)
+#results = hro3D(yn_test, gy, gx, gz, mind=np.mean(yn_test), outh=outh, savefile="hro_data_test.npz", make_plots=True)
 
 
 hros   = results['hros']
