@@ -197,7 +197,7 @@ file_path = os.path.join(base_SAT, f"MHD_LSD_{filenum}.hdf5")
 f = file_path
 
 level = args.level
-plot_chk = args.plot   # default False unless --plot
+#plot_chk = args.plot   # default False unless --plot
 
 #peaks
 #number = 1437
@@ -254,7 +254,7 @@ print('data part shape', data['ParticleIDs'].shape)
 
 # ---- PARAMETERS (set these directly in the cell)
 #file_path = "/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/snapshots/MHD_LSD_3702.hdf5" # adapt as needed
-level = 10
+#level = 10
 fields = ["magnetic_field_x", "magnetic_field_y", "magnetic_field_z","density", "H2", "HI"]
 plot_chk = False # or True
 
@@ -453,17 +453,6 @@ print(f"Saved cube data: {cube_out}")
 #number1 = 1576
 #number2 = 2066
 #number3 = 3070
-
-filenum1 = str(number1).zfill(3)
-f1 = base + 'grids/' + filenum1 + '_cube_data_float32.hdf5'
-with h5py.File("/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/grids/1437_cube_data_float32.hdf5", "r") as hf:
-    yn_test  = hf["yn"][:]
-    nH2_test  = hf["nH2"][:]
-    nHI_test  = hf["nHI"][:]
-    Bx_test  = hf["Bx"][:]
-    By_test  = hf["By"][:]
-    Bz_test  = hf["Bz"][:]
-print("Loaded data from file.")
 
 import time
 
