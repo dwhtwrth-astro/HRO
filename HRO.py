@@ -233,8 +233,8 @@ print('data part shape', data['ParticleIDs'].shape)
 # ---- PARAMETERS (set these directly in the cell)
 #file_path = "/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/snapshots/MHD_LSD_3702.hdf5" # adapt as needed
 level = 10
-fields = ["magnetic_field_x", "magnetic_field_y", "magnetic_field_z","density"]#, "mass"]
-plot_chk = True # or False
+fields = ["magnetic_field_x", "magnetic_field_y", "magnetic_field_z","density", "H2", "HI"]
+plot_chk = False # or True
 
 # ---- Load snapshot
 ds = yt.load(file_path)
@@ -254,7 +254,16 @@ if not (("gas", "magnetic_field_x") in ds.derived_field_list):
     ds.add_field(("gas", "magnetic_field_z"), function=_magnetic_field_z,
                  units="code_magnetic", sampling_type="local")
 
-#print(ds.derived_field_list)
+#add chemistry densities
+if not (("gas", "H2") in ds.derived_field_list):
+    def _H2(field, data):
+        return data['ChemicalAbundances'][:, 0]
+    def _HI(field, data):
+        return data['ChemicalAbundances'][:, 1]
+    ds.add_field(("gas", "H2"), function=_H2,
+                 sampling_type="local")
+    ds.add_field(("gas", "HI"), function=_HI,
+                 sampling_type="local")
 
 # ---- Cube geometry setup
 N_tot = 2 ** level
@@ -265,7 +274,7 @@ ctr_kpc[0] += x0
 ctr_kpc[1] += y0
 ctr_kpc[2] += z0
 
-win_kpc = np.array([2,2,2])#4, 4, 4]) # edit for your window size
+win_kpc = np.array([2,2,2]) # edit for your window size
 win_frac = win_kpc / ds.domain_width.in_units("kpc").v
 N_win = np.asarray(np.round(win_frac * N_tot), dtype=np.int32)
 left_kpc  = ctr_kpc - 0.5 * win_kpc
@@ -309,8 +318,9 @@ for i, ix in zip([0, 1, 2], ["x", "y", "z"]):
 for f in fields:
     print(f)
     print(cube["gas", f].shape)
-    data[f] = cube["gas", f]
-
+    #data[f] = cube["gas", f]
+    data[f] = np.asarray(cube["gas", f].d, dtype=np.float32)
+    
 # ---- Optional: plot a few slices as a check
 if plot_chk:
     extent = [data["xc_bnds"][0],data["xc_bnds"][-1],data["yc_bnds"][0],data["yc_bnds"][-1]]
@@ -321,7 +331,8 @@ if plot_chk:
         ax[i].set_xlabel("x (kpc)")
         cbar = plt.colorbar(im, ax=ax[i], orientation="horizontal", location="top", label="log "+str(f))
     fig.tight_layout()
-    #plt.show()
+    plt.show()
+
 
 total_z = data['density'].shape[2]   # should be 512
 crop_z = data['density'].shape[2]//2   #4
@@ -354,6 +365,8 @@ data['density'] = np.asarray(data['density'])
 data['magnetic_field_x'] = np.asarray(data['magnetic_field_x'])
 data['magnetic_field_y'] = np.asarray(data['magnetic_field_y'])
 data['magnetic_field_z'] = np.asarray(data['magnetic_field_z'])
+data['H2'] = np.asarray(data['H2'])
+data['HI'] = np.asarray(data['HI'])
 rho = data['density']
 print('loaded rho')
 print("rho type:", type(rho))
@@ -362,6 +375,8 @@ print("rho dtype:", rho.dtype)
 print('converting to yn')
 yn = rho/((1. + 4.0 * xHe) * mp)
 print('converted')
+nH2 = data['H2'] * yn
+nHI = data['HI'] * yn
 print('opening mag field x')
 Bx = data["magnetic_field_x"]#[:, 0]
 print('opened')
@@ -376,6 +391,10 @@ print(yn.shape)
 
 yn  = yn.astype(np.float32, copy=False)
 print('yn done')
+nH2  = nH2.astype(np.float32, copy=False)
+print('yn done')
+nHI  = nHI.astype(np.float32, copy=False)
+print('yn done')
 Bx  = Bx.astype(np.float32, copy=False)
 print('Bx done')
 By  = By.astype(np.float32, copy=False)
@@ -383,8 +402,10 @@ print('By done')
 Bz  = Bz.astype(np.float32, copy=False)
 print('Bx done')
 
-with h5py.File("/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/grids/test_cube_data_float32.hdf5", "w") as hf:
+with h5py.File("/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/grids/1437_cube_data_float32.hdf5", "w") as hf:
     hf.create_dataset("yn", data=yn, compression="gzip")
+    hf.create_dataset("nH2", data=nH2, compression="gzip")
+    hf.create_dataset("nHI", data=nHI, compression="gzip")
     hf.create_dataset("Bx", data=Bx, compression="gzip")
     hf.create_dataset("By", data=By, compression="gzip")
     hf.create_dataset("Bz", data=Bz, compression="gzip")
@@ -412,33 +433,19 @@ number2 = 2405
 
 filenum1 = str(number1).zfill(3)
 f1 = base + 'grids/' + filenum1 + '_cube_data_float32.hdf5'
-with h5py.File(f1, "r") as hf:
-    yn_1356 = hf["yn"][:]
-    Bx_1356 = hf["Bx"][:]
-    By_1356 = hf["By"][:]
-    Bz_1356 = hf["Bz"][:]
-print("Loaded data from file:", f1)
+with h5py.File("/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/grids/1437_cube_data_float32.hdf5", "r") as hf:
+    yn_test  = hf["yn"][:]
+    nH2_test  = hf["nH2"][:]
+    nHI_test  = hf["nHI"][:]
+    Bx_test  = hf["Bx"][:]
+    By_test  = hf["By"][:]
+    Bz_test  = hf["Bz"][:]
+print("Loaded data from file.")
 
-filenum2 = str(number2).zfill(3)
-f2 = base + 'grids/' + filenum2 + '_cube_data_float32.hdf5'
-with h5py.File(f2, "r") as hf:
-    yn_2405 = hf["yn"][:]
-    Bx_2405 = hf["Bx"][:]
-    By_2405 = hf["By"][:]
-    Bz_2405 = hf["Bz"][:]
-print("Loaded data from file:", f2)
-
-filenum3 = str(number3).zfill(3)
-f3 = base + 'grids/' + filenum3 + '_cube_data_float32.hdf5'
-with h5py.File(f3, "r") as hf:
-    yn_3070 = hf["yn"][:]
-    Bx_3070 = hf["Bx"][:]
-    By_3070 = hf["By"][:]
-    Bz_3070 = hf["Bz"][:]
-print("Loaded data from file:", f3)
+import time
 
 # ========================================================================================================================
-def roangles3D(dens, Bx, By, Bz, mode='nearest', pxksz=None):#10.24):#5.12):#2.56):
+def roangles3D(dens, Bx, By, Bz, mode='nearest', pxksz=None):
     """
     Calculates the cosine of the relative orientation angles between the density gradient and the magnetic field in 3D. 
     
@@ -477,10 +484,6 @@ def roangles3D(dens, Bx, By, Bz, mode='nearest', pxksz=None):#10.24):#5.12):#2.5
     t0 = time.time()
     print("Step Bz done in", time.time()-t0, "sec")
     print(np.shape(dens),np.shape(Bx),np.shape(By),np.shape(Bz))
-    #gx=grad[1]; gy=grad[0]; gz=grad[2];
-    #gx=ndimage.filters.gaussian_filter(dens, [pxksz, pxksz, pxksz], order=[0,0,1], mode=mode)
-    #gy=ndimage.filters.gaussian_filter(dens, [pxksz, pxksz, pxksz], order=[0,1,0], mode=mode)
-    #gz=ndimage.filters.gaussian_filter(dens, [pxksz, pxksz, pxksz], order=[1,0,0], mode=mode)   
 
     gx = gaussian_filter(dens, [pxksz, pxksz, pxksz], order=[0,0,1], mode=mode)
     gy = gaussian_filter(dens, [pxksz, pxksz, pxksz], order=[0,1,0], mode=mode)
@@ -519,9 +522,10 @@ def equibins(dens, steps=None, mind=None):
 
    if (mind is None):
       mind=np.nanmin(dens)
- 
+   print('done mind in equibins')  
    sz=np.size(dens)
    hist, bin_edges = np.histogram(dens[(dens > mind).nonzero()], bins=sz)
+   print('done hist in equibins')
    bin_centre     =0.5*(bin_edges[0:np.size(bin_edges)-1]+bin_edges[1:np.size(bin_edges)])
    print('done bin_centre in equibins')    
    chist=np.cumsum(hist)
@@ -588,10 +592,8 @@ def roparameter(cosphi, hist, ppwin=0.25):
     return xi, s_xi
 
 # ============================================================================================================
-#def hro3D(dens, Bx, By, Bz, steps=10, dsteps=None, hsize=21, mind=None, outh=[0,4,9], pxksz=2.56, label=r'$n$', weights=None):
-#def hro3D(dens, Bx, By, Bz, steps=10, dsteps=None, hsize=21, mind=None, outh=[0,4,9], pxksz=2.56, label=r'$n$', weights=None,savefile=None, make_plots=False):
-#def hro3D(dens, Bx, By, Bz, steps=10, hsize=21, mind=None, outh=[0,4,9], pxksz=2.56, label=r'$n$', weights=None,savefile=None, make_plots=False):
-def hro3D(dens, Bx, By, Bz, steps=4, dsteps=None, hsize=21, mind=None, outh=None, pxksz=None, label=r'$n$', weights=None,savefile=None, make_plots=False)
+def hro3D(dens, Bx, By, Bz, steps=4, dsteps=None, hsize=31, mind=None, outh=None, pxksz=None, label=r'$n$', weights=None,savefile=None, make_plots=False):
+
     # Calculate the relative orientation parameter $\xi$, Eq. 13 in Soler et al. 2013
    #
    # INPUTS
@@ -610,8 +612,13 @@ def hro3D(dens, Bx, By, Bz, steps=4, dsteps=None, hsize=21, mind=None, outh=None
 
    cosphi = roangles3D(dens, Bx, By, Bz, pxksz=pxksz)
    print('done cosphi')
-   dsteps = equibins(dens, steps=steps, mind=mind)
+   if dsteps is None:
+       dsteps = equibins(dens, steps=steps, mind=mind)
    print('done dsteps')
+   print('dsteps = ',dsteps)
+   if outh is None:
+       outh = range(steps)
+   print('outh = ', outh)
    hros   =np.zeros([steps,hsize])
    cdens  =np.zeros(steps)
    xi     =np.zeros(steps)
@@ -648,29 +655,22 @@ def hro3D(dens, Bx, By, Bz, steps=4, dsteps=None, hsize=21, mind=None, outh=None
        outsteps = np.size(outh)
        color = iter(cm.cool(np.linspace(0, 1, outsteps)))
 
-       fig = plt.figure(figsize=(6.0,6.0))
+       fig = plt.figure(figsize=(10.0,5.0))
        plt.rc('font', size=10)
        ax1=plt.subplot(111)
        for i in range(0, outsteps):
           c = next(color)
-          lower = manual_dsteps[outh[i]]
-          upper = manual_dsteps[outh[i] + 1]
-          labeltext = f"{lower:.2f} < n < {upper:.2f}"
+          labeltext = str(np.round(dsteps[outh[i]],2))+' < '+label+' < '+str(np.round(dsteps[outh[i]+1],2))
           counts = hros[outh[i], :].astype(float)
           dx = bin_centre[1] - bin_centre[0]
           norm_counts = counts / (counts.sum() * dx)
-          #print(counts.sum(), counts.min(), counts.max())
           ax1.plot(bin_centre, norm_counts, '-', linewidth=2, c=c, label=labeltext)
-          #c = next(color)
-          #labeltext = str(np.round(dsteps[outh[i]],2))+' < '+label+' < '+str(np.round(dsteps[outh[i]+1],2))
-          #ax1.plot(bin_centre, hros[outh[i],:], '-', linewidth=2, c=c, label=labeltext)
        ax1.set_xlabel(r'cos($\phi$)')
        ax1.set_ylabel('Counts')
        ax1.tick_params(axis='y', labelrotation=90)
        ax1.legend()
        plt.grid()
        plt.tight_layout()
-       #plt.savefig('/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/grids/3070-HRO.png')
        plt.show()
        
        fig = plt.figure(figsize=(8.0,4.0))
@@ -681,10 +681,8 @@ def hro3D(dens, Bx, By, Bz, steps=4, dsteps=None, hsize=21, mind=None, outh=None
        ax1.axhline(y=0., c='k', ls='--')
        ax1.set_xlabel(r'log$_{10}$ ($n_{\rm H}/$cm$^{-3}$)')
        ax1.set_ylabel(r'$\xi$')
-       ax1.set_ylim(-0.2,0.5)
        plt.grid()
        plt.tight_layout()
-       #plt.savefig('/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/grids/3070-ROvsLogNH.png')
        plt.show()
 
        fig = plt.figure(figsize=(8.0,4.0))
@@ -695,65 +693,63 @@ def hro3D(dens, Bx, By, Bz, steps=4, dsteps=None, hsize=21, mind=None, outh=None
        ax1.axhline(y=0., c='k', ls='--')
        ax1.set_xlabel(r'log$_{10}$ ($n_{\rm H}/$cm$^{-3}$)')
        ax1.set_ylabel(r'$\left<\cos\theta\right>$')
-       ax1.set_yticks([-0.005, -0.0025, 0, 0.0025, 0.005])
        plt.grid()
        plt.tight_layout()
-       #plt.savefig('/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/grids/3070-cosphivsLogNH.png')
        plt.show()
   
-   #return hros, cdens, xi
-   #return {'hros': hros, 'abins': cdens, 'xi': xi, 's_xi': s_xi, 'meancos': meancos}
    return {'hros': hros,'abins': cdens,'xi': xi,'s_xi': s_xi,'meancos': meancos,'dsteps': dsteps,'bin_centre': bin_centre}
 
-# Testing the hro3D. should go in the test script or something.
-#def main(args=None):
-#
-#    	if res.prnt:
-#		print('Primes: {0}'.format(primes))
-#
-#from astropy.convolution import Gaussian2DKernel
-#g2D=Gaussian2DKernel(10)
-#sz=np.shape(g2D)
-#dens=np.dstack([g2D]*sz[0])
-#
-#grad=np.gradient(dens, edge_order=2)
-##Bx=grad[1]
-##By=grad[0]
-##Bz=grad[2]
-#Bx=np.random.uniform(low=-1., high=1., size=np.shape(dens))
-#By=np.random.uniform(low=-1., high=1., size=np.shape(dens))
-##Bz=np.random.uniform(low=-1., high=1., size=np.shape(dens))
-##Bx=0.*dens
-##By=0.*dens
-#Bz=0.*dens
-#rho = ag[("PartType0","Density")].d.astype(np.float32)
-#Bx  = ag[("PartType0","MagneticField_x_raw")].d.astype(np.float32)
-#By  = ag[("PartType0","MagneticField_y_raw")].d.astype(np.float32)
-#Bz  = ag[("PartType0","MagneticField_z_raw")].d.astype(np.float32)
+manual_dsteps = np.array([0.1,0.5,1,2,3,4,5,6,7,8])
 
-with h5py.File("/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/grids/test_cube_data_float32.hdf5", "r") as hf:
-    yn_test  = hf["yn"][:]
-    Bx_test  = hf["Bx"][:]
-    By_test  = hf["By"][:]
-    Bz_test  = hf["Bz"][:]
-print("Loaded data from file.")
-
-#hros, cdens, zeta = hro3D(rho, Bx, By, Bz, mind=np.mean(rho))
-manual_dsteps = np.array([0.5,1,2,4,6,8,10,50,100])#0.2,0.4,0.6,0.8,1,2,4,6,8,10,20,40,60])#, 800])#, 5000])
-#gy, gx, gz = np.gradient(yn_test)
-#outh = [0,4,9]
-outh = np.arange(len(manual_dsteps) - 1)#[0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18]
+outh = np.arange(len(manual_dsteps) - 1)
 steps = np.size(outh)
 print(steps)
-gaussion_voxels = 10
+gaussion_voxels = 3.86 #2.57 #5.13 #the box is 1024 and 2kpc x 2kpc x 2kpc so 1 voxel is 1.95pc^3 so to get 10pc smoothing its 5.13
 print("About to call hro3D")
-#results = hro3D(yn, Bx, By, Bz, mind=np.mean(yn), dsteps=manual_dsteps, outh=None)
-results = hro3D(yn_test, Bx_test, By_test, Bz_test, steps=steps, mind=np.mean(yn_test), dsteps=manual_dsteps, outh=outh, pxksz=gaussion_voxels, savefile="hro_data_test.npz", make_plots=True)
-#results = hro3D(yn_test, gy, gx, gz, mind=np.mean(yn_test), dsteps=manual_dsteps, outh=outh, savefile="hro_data_test.npz", make_plots=True)
-#results = hro3D(yn_test, gy, gx, gz, mind=np.mean(yn_test), outh=outh, savefile="hro_data_test.npz", make_plots=True)
 
+#BIN WITH MHD, LOOK AT THERMAL PRESSURE, DO NEURAL GAS (HI)
+
+results = hro3D(nHI, Bx, By, Bz, steps=steps, mind=np.mean(nHI), dsteps=manual_dsteps, outh=outh, pxksz=gaussion_voxels, savefile="hro_data_test.npz", make_plots=True)
 
 hros   = results['hros']
 cdens  = results['abins']
 zeta   = results['xi']
 bin_centre = results['bin_centre']
+
+
+manual_dsteps = np.array([0.1,0.5,1,2,3,4])
+outh = np.arange(len(manual_dsteps) - 1)
+outsteps = np.size(outh)
+color = iter(cm.cool(np.linspace(0, 1, outsteps)))
+
+fig, ax1 = plt.subplots()
+fig_size = plt.rcParams["figure.figsize"]
+
+fig_size[0]=10
+fig_size[1]=5
+plt.rcParams["figure.figsize"] = fig_size
+plt.rcParams['axes.linewidth'] = 2
+fig.tight_layout()
+fig.subplots_adjust(hspace=0, wspace=0)
+
+for i in range(outsteps):
+    c = next(color)
+    lower = manual_dsteps[outh[i]]
+    upper = manual_dsteps[outh[i] + 1]
+    labeltext = f"{lower:.2f} < n < {upper:.2f}"
+    counts = hros[outh[i], :].astype(float)
+    dx = bin_centre[1] - bin_centre[0]
+    norm_counts = counts / (counts.sum() * dx)
+    ax1.plot(bin_centre, norm_counts, '-', linewidth=2, c=c, label=labeltext)
+
+ax1.set_xlabel(r'cos($\phi$)',fontsize=20)
+ax1.set_ylabel('Counts',fontsize=20)
+ax1.tick_params(axis='y', labelrotation=45)
+ax1.xaxis.set_tick_params(labelsize=18,width = 2, length = 7)
+ax1.yaxis.set_tick_params(labelsize=18,width = 2, length = 7)
+ax1.xaxis.set_ticks(np.arange(-1.0, 0.9, 0.5))
+ax1.set_xlim(-1,1)
+ax1.legend(fontsize = 14, loc ='upper center',ncol=2)
+ax1.grid()
+
+plt.show()
