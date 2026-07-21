@@ -3,6 +3,8 @@ import numpy.ma as ma
 import matplotlib.pyplot as plt
 import math
 import h5py
+import argparse
+import os
 
 from arepy.read_write import binary_read as rsnap
 from arepy.read_write import binary_write as wsnap
@@ -173,9 +175,29 @@ def write_snapshot_hdf5(filename, output):
             if key in file['PartType0']:
                 file['PartType0'][key][:] = output['data'][key]
                 
+def parse_args():
+    p = argparse.ArgumentParser(description="Run HRO pipeline for one snapshot.")
+    p.add_argument("--snapshot", type=int, required=True, help="Snapshot number, e.g. 1356")
+    p.add_argument("--base-snap", type=str, default="/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/snapshots/",
+                   help="Base path containing MHD_LSD_XXXX.hdf5")
+    p.add_argument("--base-out", type=str, default="/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/grids/",
+                   help="Output directory for cube hdf5 and hro npz")
+    p.add_argument("--level", type=int, default=10)
+    p.add_argument("--plot", action="store_true", help="Enable plots (default off)")
+    return p.parse_args()                
                 
-base_SAT = '/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/snapshots/'
-base = '/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/'
+args = parse_args()
+number = args.snapshot
+filenum = str(number).zfill(3)
+
+base_SAT = args.base_snap
+base = "/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/"  # keep if needed elsewhere
+
+file_path = os.path.join(base_SAT, f"MHD_LSD_{filenum}.hdf5")
+f = file_path
+
+level = args.level
+plot_chk = args.plot   # default False unless --plot
 
 #peaks
 #number = 1437
@@ -196,17 +218,17 @@ base = '/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/'
 #dec
 #number = 1576
 #number = 2066
-number = 3070
+#number = 3070
 
-filenum = str(number).zfill(3)
-file_path = '/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/snapshots/MHD_LSD_' + filenum + '.hdf5'
+#filenum = str(number).zfill(3)
+#file_path = '/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/snapshots/MHD_LSD_' + filenum + '.hdf5'
 
-level = 10
-fields = ["magnetic_field_x", "magnetic_field_y", "magnetic_field_z","density"]
-plot_chk = True # or False
+#level = 10
+#fields = ["magnetic_field_x", "magnetic_field_y", "magnetic_field_z","density"]
+#plot_chk = True # or False
 
-filenum = str(number).zfill(3)
-f = base_SAT + 'MHD_LSD_' + filenum + '.hdf5'
+#filenum = str(number).zfill(3)
+#f = base_SAT + 'MHD_LSD_' + filenum + '.hdf5'
 
 rsnap.io_flags['mc_tracer']=False
 rsnap.io_flags['time_steps']=True
@@ -402,14 +424,15 @@ print('By done')
 Bz  = Bz.astype(np.float32, copy=False)
 print('Bx done')
 
-with h5py.File("/cosma8/data/dp058/dc-whit3/Lyon/LSD_model/grids/1437_cube_data_float32.hdf5", "w") as hf:
+cube_out = os.path.join(args.base_out, f"{filenum}_cube_data_float32.hdf5")
+with h5py.File(cube_out, "w") as hf:
     hf.create_dataset("yn", data=yn, compression="gzip")
     hf.create_dataset("nH2", data=nH2, compression="gzip")
     hf.create_dataset("nHI", data=nHI, compression="gzip")
     hf.create_dataset("Bx", data=Bx, compression="gzip")
     hf.create_dataset("By", data=By, compression="gzip")
     hf.create_dataset("Bz", data=Bz, compression="gzip")
-print("Saved all arrays and scalars to my_cube_data_float32.h5")
+print(f"Saved cube data: {cube_out}")
 
 #peaks
 #number1 = 1437
@@ -420,8 +443,8 @@ print("Saved all arrays and scalars to my_cube_data_float32.h5")
 #number2 = 2286
 #number3 = 3447
 #quiescent
-number1 = 1356
-number2 = 2405
+#number1 = 1356
+#number2 = 2405
 #inc
 #number1 = 1525
 #number2 = 2165
@@ -709,47 +732,17 @@ print("About to call hro3D")
 
 #BIN WITH MHD, LOOK AT THERMAL PRESSURE, DO NEURAL GAS (HI)
 
-results = hro3D(nHI, Bx, By, Bz, steps=steps, mind=np.mean(nHI), dsteps=manual_dsteps, outh=outh, pxksz=gaussion_voxels, savefile="hro_data_test.npz", make_plots=True)
+hro_out_hi = os.path.join(args.base_out, f"hro_hi_{filenum}.npz")
 
-hros   = results['hros']
-cdens  = results['abins']
-zeta   = results['xi']
-bin_centre = results['bin_centre']
+results_hi = hro3D(
+    nHI, Bx, By, Bz,
+    steps=steps,
+    mind=np.mean(nHI),
+    dsteps=manual_dsteps,
+    outh=outh,
+    pxksz=gaussion_voxels,
+    savefile=hro_out_hi,
+    make_plots=False
+)
 
-
-manual_dsteps = np.array([0.1,0.5,1,2,3,4])
-outh = np.arange(len(manual_dsteps) - 1)
-outsteps = np.size(outh)
-color = iter(cm.cool(np.linspace(0, 1, outsteps)))
-
-fig, ax1 = plt.subplots()
-fig_size = plt.rcParams["figure.figsize"]
-
-fig_size[0]=10
-fig_size[1]=5
-plt.rcParams["figure.figsize"] = fig_size
-plt.rcParams['axes.linewidth'] = 2
-fig.tight_layout()
-fig.subplots_adjust(hspace=0, wspace=0)
-
-for i in range(outsteps):
-    c = next(color)
-    lower = manual_dsteps[outh[i]]
-    upper = manual_dsteps[outh[i] + 1]
-    labeltext = f"{lower:.2f} < n < {upper:.2f}"
-    counts = hros[outh[i], :].astype(float)
-    dx = bin_centre[1] - bin_centre[0]
-    norm_counts = counts / (counts.sum() * dx)
-    ax1.plot(bin_centre, norm_counts, '-', linewidth=2, c=c, label=labeltext)
-
-ax1.set_xlabel(r'cos($\phi$)',fontsize=20)
-ax1.set_ylabel('Counts',fontsize=20)
-ax1.tick_params(axis='y', labelrotation=45)
-ax1.xaxis.set_tick_params(labelsize=18,width = 2, length = 7)
-ax1.yaxis.set_tick_params(labelsize=18,width = 2, length = 7)
-ax1.xaxis.set_ticks(np.arange(-1.0, 0.9, 0.5))
-ax1.set_xlim(-1,1)
-ax1.legend(fontsize = 14, loc ='upper center',ncol=2)
-ax1.grid()
-
-plt.show()
+print(f"Saved HI HRO: {hro_out_hi}")
