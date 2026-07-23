@@ -333,26 +333,30 @@ print(start, end)                # Should be 192, 320 for 128 centered in 512
 
 print('data[density].shape:', data['density'].shape)
 
+#for f in fields:
+#    data[f] = data[f][:, :, start:end]
+
 for f in fields:
-    data[f] = data[f][:, :, start:end]
+    arr = cube["gas", f].d[:, :, start:end]
+    data[f] = np.asarray(arr, dtype=np.float32)
 
-print('data[density].shape after crop:', data['density'].shape)
-print('data[magnetic_field_x].shape after crop:', data['magnetic_field_x'].shape)
+#print('data[density].shape after crop:', data['density'].shape)
+#print('data[magnetic_field_x].shape after crop:', data['magnetic_field_x'].shape)
 
-print('opening rho')
-rho = data['density']
-print('loaded rho')
-print("rho type:", type(rho))
-print("rho shape:", rho.shape)
-print("rho dtype:", rho.dtype)
-print("xHe type:", type(xHe))
+#print('opening rho')
+#rho = data['density']
+#print('loaded rho')
+#print("rho type:", type(rho))
+#print("rho shape:", rho.shape)
+#print("rho dtype:", rho.dtype)
+#print("xHe type:", type(xHe))
 
-data['density'] = np.asarray(data['density'])
-data['magnetic_field_x'] = np.asarray(data['magnetic_field_x'])
-data['magnetic_field_y'] = np.asarray(data['magnetic_field_y'])
-data['magnetic_field_z'] = np.asarray(data['magnetic_field_z'])
-data['H2'] = np.asarray(data['H2'])
-data['HI'] = np.asarray(data['HI'])
+#data['density'] = np.asarray(data['density'])
+#data['magnetic_field_x'] = np.asarray(data['magnetic_field_x'])
+#data['magnetic_field_y'] = np.asarray(data['magnetic_field_y'])
+#data['magnetic_field_z'] = np.asarray(data['magnetic_field_z'])
+#data['H2'] = np.asarray(data['H2'])
+#data['HI'] = np.asarray(data['HI'])
 rho = data['density']
 print('loaded rho')
 print('converting to yn')
@@ -370,25 +374,26 @@ print('opening z')
 Bz = data["magnetic_field_z"]#[:, 2]
 print('opened')
 
-yn  = yn.astype(np.float32, copy=False)
-print('yn done')
-nH2  = nH2.astype(np.float32, copy=False)
-print('yn done')
-nHI  = nHI.astype(np.float32, copy=False)
-print('yn done')
-Bx  = Bx.astype(np.float32, copy=False)
-print('Bx done')
-By  = By.astype(np.float32, copy=False)
-print('By done')
-Bz  = Bz.astype(np.float32, copy=False)
-print('Bx done')
+#yn  = yn.astype(np.float32, copy=False)
+#print('yn done')
+#nH2  = nH2.astype(np.float32, copy=False)
+#print('yn done')
+#nHI  = nHI.astype(np.float32, copy=False)
+#print('yn done')
+#Bx  = Bx.astype(np.float32, copy=False)
+#print('Bx done')
+#By  = By.astype(np.float32, copy=False)
+#print('By done')
+#Bz  = Bz.astype(np.float32, copy=False)
+#print('Bx done')
+
+
 
 cube_out = os.path.join(args.base_out, f"{filenum}_cube_data_float32.hdf5")
 with h5py.File(cube_out, "w") as hf:
-    hf.create_dataset("yn", data=yn, compression="gzip")
-    hf.create_dataset("nH2", data=nH2, compression="gzip")
-    hf.create_dataset("nHI", data=nHI, compression="gzip")
-    hf.create_dataset("Bx", data=Bx, compression="gzip")
-    hf.create_dataset("By", data=By, compression="gzip")
-    hf.create_dataset("Bz", data=Bz, compression="gzip")
-print(f"Saved cube data: {cube_out}")
+    hf.create_dataset("yn", data=yn)   # no gzip
+    hf.create_dataset("nH2", data=nH2)
+    hf.create_dataset("nHI", data=nHI)
+    hf.create_dataset("Bx", data=Bx)
+    hf.create_dataset("By", data=By)
+    hf.create_dataset("Bz", data=Bz)
