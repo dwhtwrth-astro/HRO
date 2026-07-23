@@ -310,21 +310,8 @@ for i, ix in zip([0, 1, 2], ["x", "y", "z"]):
     data[ix+"g_bnds"] = np.linspace(left_kpc[i], right_kpc[i], N_win[i]+1)
     data[ix+"ctr"]    = np.linspace(-0.5*win_kpc[i]+0.5*dx[i], 0.5*win_kpc[i]-0.5*dx[i], N_win[i])
     data[ix+"c_bnds"] = np.linspace(-0.5*win_kpc[i], 0.5*win_kpc[i], N_win[i]+1)
-    
-# ---- Optional: plot a few slices as a check
-if plot_chk:
-    extent = [data["xc_bnds"][0],data["xc_bnds"][-1],data["yc_bnds"][0],data["yc_bnds"][-1]]
-    fig, ax = plt.subplots(figsize=(5*len(fields), 6), ncols=len(fields))
-    for i, f in enumerate(fields):
-        # Slices through the middle of the box
-        im = ax[i].imshow(np.log10(data[f][:,:,data[f].shape[2]//2]), extent=extent)
-        ax[i].set_xlabel("x (kpc)")
-        cbar = plt.colorbar(im, ax=ax[i], orientation="horizontal", location="top", label="log "+str(f))
-    fig.tight_layout()
-    plt.show()
 
 for f in fields:
-    print(f)
     data[f] = np.asarray(cube["gas", f], dtype=np.float32)
 
 rho = data['density']
