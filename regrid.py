@@ -320,13 +320,7 @@ start = (total_z - crop_z) // 2
 end = start + crop_z
 print(start, end)                # Should be 192, 320 for 128 centered in 512
 
-#print('data[density].shape:', data['density'].shape)
-
-#for f in fields:
-#    data[f] = data[f][:, :, start:end]
-
 for f in fields:
-    #arr = cube["gas", f].d[:, :, start:end]
     print(f)
     arr = np.asarray(cube["gas", f], dtype=np.float32)[:, :, start:end]
     data[f] = arr
