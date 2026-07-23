@@ -291,6 +291,9 @@ print("Cube left/right edge (kpc):", left_kpc, right_kpc)
 print("Cube center (kpc):", ctr_kpc)
 print("Difference from domain center (kpc):", left_kpc - ds.domain_center.in_units('kpc').d)
 
+# ---- Extract cube
+cube = ds.covering_grid(level=level, left_edge=left, dims=N_win)
+
 # ---- Store grid lines (coordinate bins)
 data = {}
 for i, ix in zip([0, 1, 2], ["x", "y", "z"]):
