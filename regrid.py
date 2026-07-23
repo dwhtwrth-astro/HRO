@@ -311,10 +311,10 @@ if plot_chk:
     fig.tight_layout()
     plt.show()
 
-+total_z = N_win[2]
-+crop_z = total_z // 2
-+start = (total_z - crop_z) // 2
-+end = start + crop_z
+total_z = N_win[2]
+crop_z = total_z // 2
+start = (total_z - crop_z) // 2
+end = start + crop_z
 print(start, end)                # Should be 192, 320 for 128 centered in 512
 
 #print('data[density].shape:', data['density'].shape)
