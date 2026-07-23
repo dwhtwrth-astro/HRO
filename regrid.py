@@ -291,7 +291,6 @@ print("Cube left/right edge (kpc):", left_kpc, right_kpc)
 print("Cube center (kpc):", ctr_kpc)
 print("Difference from domain center (kpc):", left_kpc - ds.domain_center.in_units('kpc').d)
 
-
 # ---- Extract cube on the cropped z-range directly
 crop_z = N_win[2] // 2
 start = (N_win[2] - crop_z) // 2
