@@ -303,11 +303,11 @@ for i, ix in zip([0, 1, 2], ["x", "y", "z"]):
     data[ix+"c_bnds"] = np.linspace(-0.5*win_kpc[i], 0.5*win_kpc[i], N_win[i]+1)
 
 # ---- Extract fields
-for f in fields:
-    print(f)
-    print(cube["gas", f].shape)
+#for f in fields:
+#    print(f)
+#    print(cube["gas", f].shape)
     #data[f] = cube["gas", f]
-    data[f] = np.asarray(cube["gas", f].d, dtype=np.float32)
+#    data[f] = np.asarray(cube["gas", f].d, dtype=np.float32)
     
 # ---- Optional: plot a few slices as a check
 if plot_chk:
@@ -337,8 +337,9 @@ print('data[density].shape:', data['density'].shape)
 #    data[f] = data[f][:, :, start:end]
 
 for f in fields:
-    arr = cube["gas", f].d[:, :, start:end]
-    data[f] = np.asarray(arr, dtype=np.float32)
+    #arr = cube["gas", f].d[:, :, start:end]
+    arr = np.asarray(cube["gas", f], dtype=np.float32)[:, :, start:end]
+    data[f] = arr#np.asarray(arr, dtype=np.float32)
 
 #print('data[density].shape after crop:', data['density'].shape)
 #print('data[magnetic_field_x].shape after crop:', data['magnetic_field_x'].shape)
