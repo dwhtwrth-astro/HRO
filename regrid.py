@@ -291,8 +291,18 @@ print("Cube left/right edge (kpc):", left_kpc, right_kpc)
 print("Cube center (kpc):", ctr_kpc)
 print("Difference from domain center (kpc):", left_kpc - ds.domain_center.in_units('kpc').d)
 
-# ---- Extract cube
-cube = ds.covering_grid(level=level, left_edge=left, dims=N_win)
+
+# ---- Extract cube on the cropped z-range directly
+crop_z = N_win[2] // 2
+start = (N_win[2] - crop_z) // 2
+end = start + crop_z
+
+left_crop_kpc = left_kpc.copy()
+left_crop_kpc[2] = left_kpc[2] + start * dx[2]
+left_crop = left_crop_kpc * kpc / ds.parameters["UnitLength_in_cm"]
+N_crop = np.asarray([N_win[0], N_win[1], crop_z], dtype=np.int32)
+
+cube = ds.covering_grid(level=level, left_edge=left_crop, dims=N_crop)
 
 # ---- Store grid lines (coordinate bins)
 data = {}
@@ -314,16 +324,9 @@ if plot_chk:
     fig.tight_layout()
     plt.show()
 
-total_z = N_win[2]
-crop_z = total_z // 2
-start = (total_z - crop_z) // 2
-end = start + crop_z
-print(start, end)                # Should be 192, 320 for 128 centered in 512
-
 for f in fields:
     print(f)
-    arr = np.asarray(cube["gas", f], dtype=np.float32)[:, :, start:end]
-    data[f] = arr
+    data[f] = np.asarray(cube["gas", f], dtype=np.float32)
 
 rho = data['density']
 yn = rho / ((1. + 4.0 * xHe) * mp)
