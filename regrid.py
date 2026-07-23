@@ -275,9 +275,6 @@ ctr_kpc = np.array([50.0, 50.0, 50.0])
 left_kpc  = ctr_kpc - 0.5 * win_kpc
 left = left_kpc * kpc / ds.parameters["UnitLength_in_cm"]
 
-# ---- Extract cube
-cube = ds.covering_grid(level=level, left_edge=left, dims=N_win)
-
 print("Window (kpc):", win_kpc)
 print("Win_frac:", win_frac)
 print("Grid shape:", N_win)
@@ -301,13 +298,6 @@ for i, ix in zip([0, 1, 2], ["x", "y", "z"]):
     data[ix+"g_bnds"] = np.linspace(left_kpc[i], right_kpc[i], N_win[i]+1)
     data[ix+"ctr"]    = np.linspace(-0.5*win_kpc[i]+0.5*dx[i], 0.5*win_kpc[i]-0.5*dx[i], N_win[i])
     data[ix+"c_bnds"] = np.linspace(-0.5*win_kpc[i], 0.5*win_kpc[i], N_win[i]+1)
-
-# ---- Extract fields
-#for f in fields:
-#    print(f)
-#    print(cube["gas", f].shape)
-    #data[f] = cube["gas", f]
-#    data[f] = np.asarray(cube["gas", f].d, dtype=np.float32)
     
 # ---- Optional: plot a few slices as a check
 if plot_chk:
@@ -321,78 +311,34 @@ if plot_chk:
     fig.tight_layout()
     plt.show()
 
-total_z = data['density'].shape[2]   # should be 512
-crop_z = data['density'].shape[2]//2   #4
-print('total_z:', total_z)
-print('crop_z:', crop_z)
-start = (total_z - crop_z) // 2      # 192
-end = start + crop_z                 # 320
-print("Central z-cells:", start, "to", end-1)
-
++total_z = N_win[2]
++crop_z = total_z // 2
++start = (total_z - crop_z) // 2
++end = start + crop_z
 print(start, end)                # Should be 192, 320 for 128 centered in 512
 
-print('data[density].shape:', data['density'].shape)
+#print('data[density].shape:', data['density'].shape)
 
 #for f in fields:
 #    data[f] = data[f][:, :, start:end]
 
 for f in fields:
     #arr = cube["gas", f].d[:, :, start:end]
+    print(f)
     arr = np.asarray(cube["gas", f], dtype=np.float32)[:, :, start:end]
-    data[f] = arr#np.asarray(arr, dtype=np.float32)
+    data[f] = arr
 
-#print('data[density].shape after crop:', data['density'].shape)
-#print('data[magnetic_field_x].shape after crop:', data['magnetic_field_x'].shape)
-
-#print('opening rho')
-#rho = data['density']
-#print('loaded rho')
-#print("rho type:", type(rho))
-#print("rho shape:", rho.shape)
-#print("rho dtype:", rho.dtype)
-#print("xHe type:", type(xHe))
-
-#data['density'] = np.asarray(data['density'])
-#data['magnetic_field_x'] = np.asarray(data['magnetic_field_x'])
-#data['magnetic_field_y'] = np.asarray(data['magnetic_field_y'])
-#data['magnetic_field_z'] = np.asarray(data['magnetic_field_z'])
-#data['H2'] = np.asarray(data['H2'])
-#data['HI'] = np.asarray(data['HI'])
 rho = data['density']
-print('loaded rho')
-print('converting to yn')
-yn = rho/((1. + 4.0 * xHe) * mp)
-print('converted')
+yn = rho / ((1. + 4.0 * xHe) * mp)
 nH2 = data['H2'] * yn
 nHI = data['HI'] * yn
-print('opening mag field x')
-Bx = data["magnetic_field_x"]#[:, 0]
-print('opened')
-print('opening y')
-By = data["magnetic_field_y"]#[:, 1]
-print('opened')
-print('opening z')
-Bz = data["magnetic_field_z"]#[:, 2]
-print('opened')
-
-#yn  = yn.astype(np.float32, copy=False)
-#print('yn done')
-#nH2  = nH2.astype(np.float32, copy=False)
-#print('yn done')
-#nHI  = nHI.astype(np.float32, copy=False)
-#print('yn done')
-#Bx  = Bx.astype(np.float32, copy=False)
-#print('Bx done')
-#By  = By.astype(np.float32, copy=False)
-#print('By done')
-#Bz  = Bz.astype(np.float32, copy=False)
-#print('Bx done')
-
-
+Bx = data["magnetic_field_x"]
+By = data["magnetic_field_y"]
+Bz = data["magnetic_field_z"]
 
 cube_out = os.path.join(args.base_out, f"{filenum}_cube_data_float32.hdf5")
 with h5py.File(cube_out, "w") as hf:
-    hf.create_dataset("yn", data=yn)   # no gzip
+    hf.create_dataset("yn", data=yn)
     hf.create_dataset("nH2", data=nH2)
     hf.create_dataset("nHI", data=nHI)
     hf.create_dataset("Bx", data=Bx)
